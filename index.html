@@ -3,1566 +3,939 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>变声还原器 - 揭开变声面具，还原真实声音</title>
+<title>变声还原器 - 训练 · 识别 · 还原</title>
 <style>
-  /* ===== Reset & Base ===== */
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  html{font-size:16px;-webkit-text-size-adjust:100%}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
-    background:linear-gradient(135deg,#0a0a1a 0%,#1a0a2e 50%,#0d0d2b 100%);
-    color:#e0e0f0;
-    min-height:100vh;
-    overflow-x:hidden;
-    position:relative;
-  }
-  /* Grid overlay */
-  body::before{
-    content:'';
-    position:fixed;inset:0;
-    background-image:
-      linear-gradient(rgba(0,240,255,0.03) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(0,240,255,0.03) 1px,transparent 1px);
-    background-size:40px 40px;
-    pointer-events:none;z-index:0;
-  }
-  /* Glow orbs */
-  body::after{
-    content:'';
-    position:fixed;
-    width:600px;height:600px;
-    border-radius:50%;
-    background:radial-gradient(circle,rgba(0,240,255,0.06) 0%,transparent 70%);
-    top:-200px;left:50%;transform:translateX(-50%);
-    pointer-events:none;z-index:0;
-  }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+  background:linear-gradient(135deg,#0a0a1a 0%,#1a0a2e 50%,#0d0d2b 100%);
+  color:#e0e0f0;min-height:100vh;overflow-x:hidden;position:relative;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,240,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,0.03) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0;
+}
+body::after{
+  content:'';position:fixed;width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,240,255,0.06) 0%,transparent 70%);
+  top:-200px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:0;
+}
+.app{position:relative;z-index:1;max-width:720px;margin:0 auto;padding:24px 16px 48px;}
+.header{text-align:center;padding:32px 0 16px;}
+.header .icon{font-size:48px;display:block;margin-bottom:8px;filter:drop-shadow(0 0 20px rgba(0,240,255,0.4));animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.header h1{font-size:clamp(1.6rem,4vw,2.2rem);font-weight:800;letter-spacing:0.04em;background:linear-gradient(135deg,#00f0ff,#7b2fff,#ff00aa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px;}
+.header .subtitle{font-size:0.9rem;color:#8888aa;letter-spacing:0.06em;}
 
-  /* ===== Layout ===== */
-  .app{
-    position:relative;z-index:1;
-    max-width:720px;
-    margin:0 auto;
-    padding:24px 16px 48px;
-  }
+/* Tabs */
+.tab-nav{display:flex;gap:4px;margin-bottom:16px;background:rgba(255,255,255,0.03);border-radius:12px;padding:4px;border:1px solid rgba(255,255,255,0.06);}
+.tab-btn{flex:1;padding:12px 8px;border:none;border-radius:10px;background:transparent;color:#8888aa;cursor:pointer;font-size:0.82rem;font-family:inherit;font-weight:600;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.tab-btn:hover{color:#ccccee;background:rgba(255,255,255,0.03);}
+.tab-btn.active{background:rgba(0,240,255,0.1);color:#00f0ff;box-shadow:0 0 15px rgba(0,240,255,0.1);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
 
-  /* ===== Header ===== */
-  .header{
-    text-align:center;
-    padding:32px 0 20px;
-  }
-  .header .icon{
-    font-size:48px;
-    display:block;
-    margin-bottom:8px;
-    filter:drop-shadow(0 0 20px rgba(0,240,255,0.4));
-    animation:float 3s ease-in-out infinite;
-  }
-  @keyframes float{
-    0%,100%{transform:translateY(0)}
-    50%{transform:translateY(-8px)}
-  }
-  .header h1{
-    font-size:clamp(1.6rem,4vw,2.2rem);
-    font-weight:800;
-    letter-spacing:0.04em;
-    background:linear-gradient(135deg,#00f0ff,#7b2fff,#ff00aa);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
-    background-clip:text;
-    margin-bottom:6px;
-  }
-  .header .subtitle{
-    font-size:0.9rem;
-    color:#8888aa;
-    letter-spacing:0.06em;
-  }
+/* Card */
+.card{background:rgba(255,255,255,0.03);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px;margin-bottom:16px;transition:border-color .3s,box-shadow .3s;}
+.card:hover{border-color:rgba(0,240,255,0.15);box-shadow:0 0 30px rgba(0,240,255,0.05);}
+.card-title{font-size:0.85rem;font-weight:700;color:#00f0ff;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card-title::before{content:'';display:inline-block;width:4px;height:16px;background:#00f0ff;border-radius:2px;box-shadow:0 0 8px rgba(0,240,255,0.5);}
 
-  /* ===== Card ===== */
-  .card{
-    background:rgba(255,255,255,0.03);
-    backdrop-filter:blur(20px);
-    -webkit-backdrop-filter:blur(20px);
-    border:1px solid rgba(255,255,255,0.06);
-    border-radius:12px;
-    padding:20px;
-    margin-bottom:16px;
-    transition:border-color .3s,box-shadow .3s;
-  }
-  .card:hover{
-    border-color:rgba(0,240,255,0.15);
-    box-shadow:0 0 30px rgba(0,240,255,0.05);
-  }
-  .card-title{
-    font-size:0.85rem;
-    font-weight:700;
-    color:#00f0ff;
-    text-transform:uppercase;
-    letter-spacing:0.1em;
-    margin-bottom:14px;
-    display:flex;align-items:center;gap:8px;
-  }
-  .card-title::before{
-    content:'';
-    display:inline-block;
-    width:4px;height:16px;
-    background:#00f0ff;
-    border-radius:2px;
-    box-shadow:0 0 8px rgba(0,240,255,0.5);
-  }
+/* Upload Zone */
+.upload-zone{border:2px dashed rgba(255,255,255,0.12);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .3s;position:relative;}
+.upload-zone:hover,.upload-zone.drag-over{border-color:#00f0ff;background:rgba(0,240,255,0.04);box-shadow:inset 0 0 40px rgba(0,240,255,0.06);}
+.upload-zone .upload-icon{font-size:36px;display:block;margin-bottom:8px;opacity:0.7;}
+.upload-zone .upload-text{font-size:0.9rem;color:#aaaacc;margin-bottom:4px;}
+.upload-zone .upload-hint{font-size:0.75rem;color:#666688;}
+.upload-zone input[type=file]{display:none}
 
-  /* ===== Upload Zone ===== */
-  .upload-zone{
-    border:2px dashed rgba(255,255,255,0.12);
-    border-radius:12px;
-    padding:36px 20px;
-    text-align:center;
-    cursor:pointer;
-    transition:all .3s;
-    position:relative;
-  }
-  .upload-zone:hover,
-  .upload-zone.drag-over{
-    border-color:#00f0ff;
-    background:rgba(0,240,255,0.04);
-    box-shadow:inset 0 0 40px rgba(0,240,255,0.06);
-  }
-  .upload-zone .upload-icon{
-    font-size:40px;
-    display:block;
-    margin-bottom:10px;
-    opacity:0.7;
-  }
-  .upload-zone .upload-text{
-    font-size:0.95rem;
-    color:#aaaacc;
-    margin-bottom:4px;
-  }
-  .upload-zone .upload-hint{
-    font-size:0.78rem;
-    color:#666688;
-  }
-  .upload-zone input[type=file]{display:none}
+/* File info bar */
+.file-info{display:none;align-items:center;gap:12px;padding:12px 16px;background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.15);border-radius:10px;margin-top:12px;}
+.file-info.show{display:flex}
+.file-info .fi-icon{font-size:24px}
+.file-info .fi-name{flex:1;font-size:0.85rem;color:#e0e0f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-info .fi-duration{font-size:0.78rem;color:#8888aa;font-family:'JetBrains Mono','Fira Code',monospace;}
+.file-info .fi-remove{background:none;border:none;color:#ff00aa;cursor:pointer;font-size:18px;padding:4px 8px;border-radius:6px;transition:all .3s;}
+.file-info .fi-remove:hover{background:rgba(255,0,170,0.15);}
 
-  /* File info bar */
-  .file-info{
-    display:none;
-    align-items:center;
-    gap:12px;
-    padding:12px 16px;
-    background:rgba(0,240,255,0.06);
-    border:1px solid rgba(0,240,255,0.15);
-    border-radius:10px;
-    margin-top:12px;
-  }
-  .file-info.show{display:flex}
-  .file-info .fi-icon{font-size:24px}
-  .file-info .fi-name{
-    flex:1;
-    font-size:0.85rem;
-    color:#e0e0f0;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-  .file-info .fi-duration{
-    font-size:0.78rem;
-    color:#8888aa;
-    font-family:'JetBrains Mono','Fira Code',monospace;
-  }
-  .file-info .fi-remove{
-    background:none;border:none;
-    color:#ff00aa;
-    cursor:pointer;
-    font-size:18px;
-    padding:4px 8px;
-    border-radius:6px;
-    transition:all .3s;
-  }
-  .file-info .fi-remove:hover{
-    background:rgba(255,0,170,0.15);
-  }
+/* Dual upload row */
+.dual-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+@media(max-width:480px){.dual-row{grid-template-columns:1fr}}
+.dual-zone{border:2px dashed rgba(255,255,255,0.1);border-radius:10px;padding:18px 10px;text-align:center;cursor:pointer;transition:all .3s;position:relative;}
+.dual-zone:hover,.dual-zone.drag-over{border-color:rgba(255,0,170,0.4);background:rgba(255,0,170,0.04);box-shadow:inset 0 0 30px rgba(255,0,170,0.05);}
+.dual-zone.filled{border-color:rgba(0,240,255,0.3);border-style:solid;background:rgba(0,240,255,0.04);}
+.dual-zone .dz-icon{font-size:26px;display:block;margin-bottom:4px;opacity:0.7;}
+.dual-zone .dz-label{font-size:0.78rem;color:#aaaacc;font-weight:600;margin-bottom:2px;}
+.dual-zone .dz-name{font-size:0.7rem;color:#666688;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}
+.dual-zone .dz-dur{font-size:0.68rem;color:#555577;font-family:'JetBrains Mono','Fira Code',monospace;}
+.dual-zone input[type=file]{display:none}
+.dual-zone .dz-remove{position:absolute;top:6px;right:6px;background:rgba(255,0,170,0.2);border:none;color:#ff00aa;cursor:pointer;font-size:12px;width:20px;height:20px;border-radius:50%;display:none;align-items:center;justify-content:center;transition:all .3s;}
+.dual-zone.filled .dz-remove{display:flex}
+.dual-zone .dz-remove:hover{background:rgba(255,0,170,0.4);}
 
-  /* ===== Calibration Card ===== */
-  .calib-row{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:12px;
-    margin-bottom:14px;
-  }
-  @media(max-width:480px){
-    .calib-row{grid-template-columns:1fr}
-  }
-  .calib-zone{
-    border:2px dashed rgba(255,255,255,0.1);
-    border-radius:10px;
-    padding:20px 12px;
-    text-align:center;
-    cursor:pointer;
-    transition:all .3s;
-    position:relative;
-  }
-  .calib-zone:hover,
-  .calib-zone.drag-over{
-    border-color:rgba(255,0,170,0.4);
-    background:rgba(255,0,170,0.04);
-    box-shadow:inset 0 0 30px rgba(255,0,170,0.05);
-  }
-  .calib-zone.filled{
-    border-color:rgba(0,240,255,0.3);
-    border-style:solid;
-    background:rgba(0,240,255,0.04);
-  }
-  .calib-zone .cz-icon{
-    font-size:28px;
-    display:block;
-    margin-bottom:6px;
-    opacity:0.7;
-  }
-  .calib-zone .cz-label{
-    font-size:0.8rem;
-    color:#aaaacc;
-    font-weight:600;
-    margin-bottom:2px;
-  }
-  .calib-zone .cz-name{
-    font-size:0.72rem;
-    color:#666688;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-    max-width:100%;
-  }
-  .calib-zone .cz-dur{
-    font-size:0.7rem;
-    color:#555577;
-    font-family:'JetBrains Mono','Fira Code',monospace;
-  }
-  .calib-zone input[type=file]{display:none}
-  .calib-zone .cz-remove{
-    position:absolute;
-    top:6px;right:6px;
-    background:rgba(255,0,170,0.2);
-    border:none;
-    color:#ff00aa;
-    cursor:pointer;
-    font-size:12px;
-    width:20px;height:20px;
-    border-radius:50%;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    transition:all .3s;
-  }
-  .calib-zone.filled .cz-remove{display:flex}
-  .calib-zone .cz-remove:hover{background:rgba(255,0,170,0.4)}
-  .analyze-btn{
-    width:100%;
-    padding:12px;
-    border-radius:10px;
-    border:1px solid rgba(255,0,170,0.3);
-    background:rgba(255,0,170,0.08);
-    color:#ff00aa;
-    cursor:pointer;
-    font-size:0.85rem;
-    font-family:inherit;
-    font-weight:700;
-    transition:all .3s;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-  }
-  .analyze-btn:hover{
-    background:rgba(255,0,170,0.15);
-    box-shadow:0 0 25px rgba(255,0,170,0.2);
-    border-color:rgba(255,0,170,0.5);
-  }
-  .analyze-btn:disabled{
-    opacity:0.35;
-    cursor:not-allowed;
-    pointer-events:none;
-  }
-  .analyze-btn.analyzing{
-    border-color:#ff00aa;
-    animation:pulse 1.2s ease-in-out infinite;
-  }
-  @keyframes pulse{
-    0%,100%{box-shadow:0 0 10px rgba(255,0,170,0.2)}
-    50%{box-shadow:0 0 30px rgba(255,0,170,0.5)}
-  }
-  .calib-result{
-    display:none;
-    margin-top:12px;
-    padding:12px 14px;
-    background:rgba(0,240,255,0.06);
-    border:1px solid rgba(0,240,255,0.2);
-    border-radius:10px;
-    font-size:0.8rem;
-    color:#00f0ff;
-    line-height:1.6;
-  }
-  .calib-result.show{display:block}
-  .calib-result .cr-row{
-    display:flex;
-    justify-content:space-between;
-    margin-bottom:4px;
-  }
-  .calib-result .cr-val{
-    font-family:'JetBrains Mono','Fira Code',monospace;
-    font-weight:700;
-  }
-  .calib-apply-btn{
-    margin-top:8px;
-    width:100%;
-    padding:8px;
-    border-radius:8px;
-    border:1px solid rgba(0,240,255,0.3);
-    background:rgba(0,240,255,0.08);
-    color:#00f0ff;
-    cursor:pointer;
-    font-size:0.78rem;
-    font-family:inherit;
-    font-weight:600;
-    transition:all .3s;
-  }
-  .calib-apply-btn:hover{
-    background:rgba(0,240,255,0.15);
-    box-shadow:0 0 15px rgba(0,240,255,0.2);
-  }
+/* Buttons */
+.btn-primary{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(0,240,255,0.3);background:rgba(0,240,255,0.08);color:#00f0ff;cursor:pointer;font-size:0.85rem;font-family:inherit;font-weight:700;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-primary:hover{background:rgba(0,240,255,0.15);box-shadow:0 0 20px rgba(0,240,255,0.2);border-color:rgba(0,240,255,0.5);}
+.btn-primary:disabled{opacity:0.35;cursor:not-allowed;pointer-events:none;}
+.btn-accent{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,0,170,0.3);background:rgba(255,0,170,0.08);color:#ff00aa;cursor:pointer;font-size:0.85rem;font-family:inherit;font-weight:700;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-accent:hover{background:rgba(255,0,170,0.15);box-shadow:0 0 25px rgba(255,0,170,0.2);border-color:rgba(255,0,170,0.5);}
+.btn-accent:disabled{opacity:0.35;cursor:not-allowed;pointer-events:none;}
+.btn-accent.analyzing{border-color:#ff00aa;animation:pulse 1.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(255,0,170,0.2)}50%{box-shadow:0 0 30px rgba(255,0,170,0.5)}}
 
-  /* ===== Preset Buttons ===== */
-  .preset-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
-    gap:10px;
-  }
-  .preset-btn{
-    background:rgba(255,255,255,0.04);
-    border:1px solid rgba(255,255,255,0.08);
-    border-radius:10px;
-    padding:14px 10px;
-    color:#ccccee;
-    cursor:pointer;
-    font-size:0.82rem;
-    font-family:inherit;
-    text-align:center;
-    transition:all .3s;
-    position:relative;
-    overflow:hidden;
-  }
-  .preset-btn::after{
-    content:'';
-    position:absolute;
-    inset:0;
-    border-radius:10px;
-    opacity:0;
-    transition:opacity .3s;
-  }
-  .preset-btn:hover{
-    border-color:rgba(0,240,255,0.3);
-    background:rgba(0,240,255,0.06);
-    transform:translateY(-1px);
-  }
-  .preset-btn:active{transform:translateY(0)}
-  .preset-btn.active{
-    border-color:#00f0ff;
-    background:rgba(0,240,255,0.1);
-    box-shadow:0 0 20px rgba(0,240,255,0.15),inset 0 0 20px rgba(0,240,255,0.05);
-    color:#00f0ff;
-  }
-  .preset-btn .preset-emoji{
-    display:block;
-    font-size:24px;
-    margin-bottom:4px;
-  }
-  .preset-btn .preset-label{
-    font-size:0.78rem;
-    font-weight:600;
-  }
-  .preset-btn .preset-desc{
-    font-size:0.68rem;
-    color:#7777aa;
-    margin-top:2px;
-  }
+/* Result panel */
+.result-panel{display:none;margin-top:12px;padding:12px 14px;background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.2);border-radius:10px;font-size:0.8rem;color:#00f0ff;line-height:1.6;}
+.result-panel.show{display:block}
+.result-panel .rp-row{display:flex;justify-content:space-between;margin-bottom:4px;}
+.result-panel .rp-val{font-family:'JetBrains Mono','Fira Code',monospace;font-weight:700;}
 
-  /* ===== Sliders ===== */
-  .slider-group{
-    margin-bottom:16px;
-  }
-  .slider-group:last-child{margin-bottom:0}
-  .slider-label{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:6px;
-    font-size:0.82rem;
-    color:#aaaacc;
-  }
-  .slider-value{
-    font-family:'JetBrains Mono','Fira Code',monospace;
-    font-size:0.78rem;
-    color:#00f0ff;
-    background:rgba(0,240,255,0.08);
-    padding:2px 8px;
-    border-radius:4px;
-    min-width:48px;
-    text-align:center;
-  }
-  input[type=range]{
-    -webkit-appearance:none;
-    width:100%;
-    height:6px;
-    border-radius:3px;
-    background:rgba(255,255,255,0.08);
-    outline:none;
-  }
-  input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none;
-    width:20px;height:20px;
-    border-radius:50%;
-    background:#00f0ff;
-    cursor:pointer;
-    box-shadow:0 0 12px rgba(0,240,255,0.5);
-    transition:box-shadow .3s;
-  }
-  input[type=range]::-webkit-slider-thumb:hover{
-    box-shadow:0 0 20px rgba(0,240,255,0.7);
-  }
-  /* Firefox */
-  input[type=range]::-moz-range-thumb{
-    width:20px;height:20px;
-    border-radius:50%;
-    background:#00f0ff;
-    cursor:pointer;
-    border:none;
-    box-shadow:0 0 12px rgba(0,240,255,0.5);
-  }
+/* Fingerprint DB */
+.fp-db{margin-top:12px;}
+.fp-db-title{font-size:0.78rem;color:#8888aa;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.fp-db-title .count{background:rgba(0,240,255,0.15);color:#00f0ff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-family:'JetBrains Mono','Fira Code',monospace;}
+.fp-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;margin-bottom:6px;transition:all .3s;}
+.fp-item:hover{border-color:rgba(0,240,255,0.2);background:rgba(0,240,255,0.04);}
+.fp-item .fp-icon{font-size:22px;flex-shrink:0;}
+.fp-item .fp-info{flex:1;min-width:0;}
+.fp-item .fp-name{font-size:0.82rem;font-weight:600;color:#e0e0f0;}
+.fp-item .fp-meta{font-size:0.7rem;color:#7777aa;font-family:'JetBrains Mono','Fira Code',monospace;}
+.fp-item .fp-rounds{font-size:0.68rem;color:#555577;background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:8px;flex-shrink:0;}
+.fp-item .fp-delete{background:none;border:none;color:#ff00aa;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:all .3s;flex-shrink:0;}
+.fp-item .fp-delete:hover{background:rgba(255,0,170,0.15);}
 
-  /* ===== Waveform ===== */
-  .waveform-container{
-    width:100%;
-    height:100px;
-    border-radius:8px;
-    overflow:hidden;
-    background:rgba(0,0,0,0.3);
-    border:1px solid rgba(255,255,255,0.05);
-    position:relative;
-  }
-  .waveform-container canvas{
-    width:100%;
-    height:100%;
-    display:block;
-  }
-  .waveform-container .wf-placeholder{
-    position:absolute;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:#555577;
-    font-size:0.82rem;
-    pointer-events:none;
-  }
+/* Identify results */
+.identify-result{margin-top:12px;}
+.id-match{display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;margin-bottom:8px;transition:all .3s;cursor:pointer;}
+.id-match:hover{border-color:rgba(0,240,255,0.3);background:rgba(0,240,255,0.05);}
+.id-match.best{border-color:#00f0ff;background:rgba(0,240,255,0.08);box-shadow:0 0 20px rgba(0,240,255,0.1);}
+.id-match .id-rank{font-size:1.2rem;font-weight:800;color:#00f0ff;width:28px;text-align:center;flex-shrink:0;}
+.id-match .id-icon{font-size:24px;flex-shrink:0;}
+.id-match .id-info{flex:1;}
+.id-match .id-name{font-size:0.85rem;font-weight:600;color:#e0e0f0;}
+.id-match .id-detail{font-size:0.7rem;color:#7777aa;font-family:'JetBrains Mono','Fira Code',monospace;}
+.id-match .id-score{font-size:1rem;font-weight:800;color:#00f0ff;flex-shrink:0;font-family:'JetBrains Mono','Fira Code',monospace;}
 
-  /* ===== Playback Controls ===== */
-  .playback-row{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-  }
-  .play-btn{
-    flex:1;
-    min-width:120px;
-    padding:14px 16px;
-    border-radius:10px;
-    border:1px solid rgba(255,255,255,0.1);
-    background:rgba(255,255,255,0.04);
-    color:#e0e0f0;
-    cursor:pointer;
-    font-size:0.85rem;
-    font-family:inherit;
-    font-weight:600;
-    transition:all .3s;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    backdrop-filter:blur(10px);
-    -webkit-backdrop-filter:blur(10px);
-  }
-  .play-btn:hover{
-    border-color:rgba(0,240,255,0.3);
-    background:rgba(0,240,255,0.06);
-  }
-  .play-btn.playing{
-    border-color:#00f0ff;
-    background:rgba(0,240,255,0.12);
-    box-shadow:0 0 20px rgba(0,240,255,0.15);
-    color:#00f0ff;
-  }
-  .play-btn.original-btn.playing{
-    border-color:#7b2fff;
-    background:rgba(123,47,255,0.12);
-    box-shadow:0 0 20px rgba(123,47,255,0.15);
-    color:#7b2fff;
-  }
-  .play-btn:disabled{
-    opacity:0.35;
-    cursor:not-allowed;
-    pointer-events:none;
-  }
+/* Sliders */
+.slider-group{margin-bottom:16px;}
+.slider-group:last-child{margin-bottom:0}
+.slider-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:0.82rem;color:#aaaacc;}
+.slider-value{font-family:'JetBrains Mono','Fira Code',monospace;font-size:0.78rem;color:#00f0ff;background:rgba(0,240,255,0.08);padding:2px 8px;border-radius:4px;min-width:48px;text-align:center;}
+input[type=range]{-webkit-appearance:none;width:100%;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#00f0ff;cursor:pointer;box-shadow:0 0 12px rgba(0,240,255,0.5);transition:box-shadow .3s;}
+input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 20px rgba(0,240,255,0.7);}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#00f0ff;cursor:pointer;border:none;box-shadow:0 0 12px rgba(0,240,255,0.5);}
 
-  /* Download btn */
-  .download-btn{
-    width:100%;
-    padding:14px;
-    border-radius:10px;
-    border:1px solid rgba(255,0,170,0.3);
-    background:rgba(255,0,170,0.08);
-    color:#ff00aa;
-    cursor:pointer;
-    font-size:0.85rem;
-    font-family:inherit;
-    font-weight:700;
-    transition:all .3s;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    margin-top:10px;
-  }
-  .download-btn:hover{
-    background:rgba(255,0,170,0.15);
-    box-shadow:0 0 25px rgba(255,0,170,0.2);
-    border-color:rgba(255,0,170,0.5);
-  }
-  .download-btn:disabled{
-    opacity:0.35;
-    cursor:not-allowed;
-    pointer-events:none;
-  }
+/* Waveform */
+.waveform-container{width:100%;height:100px;border-radius:8px;overflow:hidden;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);position:relative;}
+.waveform-container canvas{width:100%;height:100%;display:block;}
+.waveform-container .wf-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#555577;font-size:0.82rem;pointer-events:none;}
 
-  /* ===== Progress ===== */
-  .progress-bar{
-    height:4px;
-    background:rgba(255,255,255,0.06);
-    border-radius:2px;
-    margin-top:12px;
-    overflow:hidden;
-    display:none;
-  }
-  .progress-bar.show{display:block}
-  .progress-bar .fill{
-    height:100%;
-    background:linear-gradient(90deg,#00f0ff,#7b2fff);
-    border-radius:2px;
-    width:0%;
-    transition:width .1s linear;
-  }
+/* Playback */
+.playback-row{display:flex;gap:10px;flex-wrap:wrap;}
+.play-btn{flex:1;min-width:120px;padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#e0e0f0;cursor:pointer;font-size:0.85rem;font-family:inherit;font-weight:600;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:8px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+.play-btn:hover{border-color:rgba(0,240,255,0.3);background:rgba(0,240,255,0.06);}
+.play-btn.playing{border-color:#00f0ff;background:rgba(0,240,255,0.12);box-shadow:0 0 20px rgba(0,240,255,0.15);color:#00f0ff;}
+.play-btn.original-btn.playing{border-color:#7b2fff;background:rgba(123,47,255,0.12);box-shadow:0 0 20px rgba(123,47,255,0.15);color:#7b2fff;}
+.play-btn:disabled{opacity:0.35;cursor:not-allowed;pointer-events:none;}
 
-  /* ===== Toast ===== */
-  .toast{
-    position:fixed;
-    bottom:24px;
-    left:50%;
-    transform:translateX(-50%) translateY(100px);
-    background:rgba(0,0,0,0.85);
-    backdrop-filter:blur(12px);
-    -webkit-backdrop-filter:blur(12px);
-    border:1px solid rgba(255,255,255,0.1);
-    color:#e0e0f0;
-    padding:10px 24px;
-    border-radius:20px;
-    font-size:0.82rem;
-    z-index:100;
-    transition:transform .35s cubic-bezier(0.4,0,0.2,1);
-    pointer-events:none;
-  }
-  .toast.show{transform:translateX(-50%) translateY(0)}
+/* Progress */
+.progress-bar{height:4px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:12px;overflow:hidden;display:none;}
+.progress-bar.show{display:block}
+.progress-bar .fill{height:100%;background:linear-gradient(90deg,#00f0ff,#7b2fff);border-radius:2px;width:0%;transition:width .1s linear;}
 
-  /* ===== Responsive ===== */
-  @media(max-width:480px){
-    .app{padding:16px 10px 32px}
-    .card{padding:14px}
-    .preset-grid{grid-template-columns:repeat(2,1fr);gap:8px}
-    .preset-btn{padding:12px 8px}
-    .playback-row{flex-direction:column}
-    .header{padding:20px 0 12px}
-    .header .icon{font-size:36px}
-    .upload-zone{padding:24px 14px}
-  }
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);color:#e0e0f0;padding:10px 24px;border-radius:20px;font-size:0.82rem;z-index:100;transition:transform .35s cubic-bezier(0.4,0,0.2,1);pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Responsive */
+@media(max-width:480px){
+  .app{padding:16px 10px 32px}
+  .card{padding:14px}
+  .playback-row{flex-direction:column}
+  .header{padding:20px 0 12px}
+  .header .icon{font-size:36px}
+  .tab-btn{font-size:0.75rem;padding:10px 6px;}
+}
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- Header -->
-  <header class="header">
-    <span class="icon">🎤</span>
-    <h1>变声还原器</h1>
-    <p class="subtitle">揭开变声面具，还原真实声音</p>
-  </header>
+<header class="header">
+  <span class="icon">🎤</span>
+  <h1>变声还原器</h1>
+  <p class="subtitle">训练 · 识别 · 还原 — 揭开变声面具</p>
+</header>
 
-  <!-- Upload Card -->
-  <div class="card">
-    <div class="card-title">音频文件</div>
-    <div class="upload-zone" id="uploadZone">
-      <span class="upload-icon">📁</span>
-      <p class="upload-text">拖拽音频文件到此处，或点击选择</p>
-      <p class="upload-hint">支持 MP3 / WAV / M4A / OGG 格式</p>
-      <input type="file" id="fileInput" accept="audio/mp3,audio/wav,audio/m4a,audio/ogg,audio/mpeg,audio/x-wav,audio/x-m4a,.mp3,.wav,.m4a,.ogg" />
-    </div>
-    <div class="file-info" id="fileInfo">
-      <span class="fi-icon">🎵</span>
-      <span class="fi-name" id="fileName">-</span>
-      <span class="fi-duration" id="fileDuration">00:00</span>
-      <button class="fi-remove" id="fileRemove" title="移除文件">✕</button>
-    </div>
-  </div>
+<!-- Tab Navigation -->
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="train"><span>🧠</span> 训练模式</button>
+  <button class="tab-btn" data-tab="identify"><span>🔍</span> 识别模式</button>
+  <button class="tab-btn" data-tab="restore"><span>🔧</span> 还原模式</button>
+</nav>
 
-  <!-- Calibration Card -->
+<!-- ==================== TAB 1: 训练模式 ==================== -->
+<div class="tab-panel active" id="panel-train">
   <div class="card">
-    <div class="card-title">🎯 智能校准（推荐）</div>
-    <p style="font-size:0.78rem;color:#8888aa;margin-bottom:14px;">上传一段<strong style="color:#ff00aa;">原声</strong>和对应的<strong style="color:#ff00aa;">变声后</strong>音频，系统自动分析差异，算出精准还原参数。</p>
-    <div class="calib-row">
-      <div class="calib-zone" id="calibOriginalZone">
-        <span class="cz-icon">🎙️</span>
-        <span class="cz-label">原声（未变声）</span>
-        <span class="cz-name" id="calibOrigName">点击或拖拽上传</span>
-        <span class="cz-dur" id="calibOrigDur"></span>
-        <button class="cz-remove" id="calibOrigRemove">✕</button>
-        <input type="file" id="calibOrigInput" accept="audio/mp3,audio/wav,audio/m4a,audio/ogg,audio/mpeg,audio/x-wav,audio/x-m4a,.mp3,.wav,.m4a,.ogg" />
+    <div class="card-title">📚 训练新预设</div>
+    <p style="font-size:0.78rem;color:#8888aa;margin-bottom:14px;">上传<strong style="color:#ff00aa;">原声</strong> + <strong style="color:#ff00aa;">变声后</strong>音频对，系统自动分析差异并存入指纹库。多次训练同一预设可提高准确率。</p>
+    <div class="dual-row">
+      <div class="dual-zone" id="trainOrigZone">
+        <span class="dz-icon">🎙️</span><span class="dz-label">原声（未变声）</span>
+        <span class="dz-name" id="trainOrigName">点击或拖拽上传</span>
+        <span class="dz-dur" id="trainOrigDur"></span>
+        <button class="dz-remove" id="trainOrigRemove">✕</button>
+        <input type="file" id="trainOrigInput" accept="audio/mp3,audio/wav,audio/m4a,audio/ogg,audio/mpeg,audio/x-wav,audio/x-m4a,.mp3,.wav,.m4a,.ogg" />
       </div>
-      <div class="calib-zone" id="calibChangedZone">
-        <span class="cz-icon">🤖</span>
-        <span class="cz-label">变声后音频</span>
-        <span class="cz-name" id="calibChangedName">点击或拖拽上传</span>
-        <span class="cz-dur" id="calibChangedDur"></span>
-        <button class="cz-remove" id="calibChangedRemove">✕</button>
-        <input type="file" id="calibChangedInput" accept="audio/mp3,audio/wav,audio/m4a,audio/ogg,audio/mpeg,audio/x-wav,audio/x-m4a,.mp3,.wav,.m4a,.ogg" />
+      <div class="dual-zone" id="trainChangedZone">
+        <span class="dz-icon">🤖</span><span class="dz-label">变声后音频</span>
+        <span class="dz-name" id="trainChangedName">点击或拖拽上传</span>
+        <span class="dz-dur" id="trainChangedDur"></span>
+        <button class="dz-remove" id="trainChangedRemove">✕</button>
+        <input type="file" id="trainChangedInput" accept="audio/mp3,audio/wav,audio/m4a,audio/ogg,audio/mpeg,audio/x-wav,audio/x-m4a,.mp3,.wav,.m4a,.ogg" />
       </div>
     </div>
-    <button class="analyze-btn" id="analyzeBtn" disabled>
-      <span>🔬</span> 开始分析差异
+    <div style="margin-bottom:12px;">
+      <label style="font-size:0.78rem;color:#aaaacc;display:block;margin-bottom:4px;">预设名称</label>
+      <input type="text" id="trainPresetName" placeholder="例如：剪映-萝莉、抖音-大叔..." style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#e0e0f0;font-size:0.85rem;font-family:inherit;outline:none;transition:border-color .3s;" />
+    </div>
+    <button class="btn-accent" id="trainAnalyzeBtn" disabled>
+      <span>🔬</span> 分析并加入训练
     </button>
-    <div class="calib-result" id="calibResult">
-      <div class="cr-row"><span>检测音高偏移</span><span class="cr-val" id="crPitch">--</span></div>
-      <div class="cr-row"><span>共振峰偏移</span><span class="cr-val" id="crFormant">--</span></div>
-      <div class="cr-row"><span>速度变化</span><span class="cr-val" id="crSpeed">--</span></div>
-      <div class="cr-row"><span>置信度</span><span class="cr-val" id="crConfidence">--</span></div>
-      <button class="calib-apply-btn" id="calibApplyBtn">✅ 应用校准参数到还原</button>
+    <div class="result-panel" id="trainResult">
+      <div class="rp-row"><span>检测音高偏移</span><span class="rp-val" id="trPitch">--</span></div>
+      <div class="rp-row"><span>共振峰偏移</span><span class="rp-val" id="trFormant">--</span></div>
+      <div class="rp-row"><span>速度变化</span><span class="rp-val" id="trSpeed">--</span></div>
+      <div class="rp-row"><span>本次置信度</span><span class="rp-val" id="trConfidence">--</span></div>
     </div>
   </div>
 
-  <!-- Preset Card -->
+  <!-- Fingerprint Database -->
   <div class="card">
-    <div class="card-title">变声类型</div>
-    <div class="preset-grid" id="presetGrid">
-      <button class="preset-btn active" data-preset="monkey">
-        <span class="preset-emoji">🐵</span>
-        <span class="preset-label">猴哥音还原</span>
-        <span class="preset-desc">降调 3-4 半音</span>
-      </button>
-      <button class="preset-btn" data-preset="loli">
-        <span class="preset-emoji">👧</span>
-        <span class="preset-label">萝莉音还原</span>
-        <span class="preset-desc">降调 5-6 半音</span>
-      </button>
-      <button class="preset-btn" data-preset="uncle">
-        <span class="preset-emoji">👨</span>
-        <span class="preset-label">大叔音还原</span>
-        <span class="preset-desc">升调 2-3 半音</span>
-      </button>
-      <button class="preset-btn" data-preset="robot">
-        <span class="preset-emoji">🤖</span>
-        <span class="preset-label">机器人还原</span>
-        <span class="preset-desc">去 Vocoder 效果</span>
-      </button>
-      <button class="preset-btn" data-preset="reverb">
-        <span class="preset-emoji">🌊</span>
-        <span class="preset-label">回声/混响还原</span>
-        <span class="preset-desc">去混响处理</span>
-      </button>
-      <button class="preset-btn" data-preset="custom">
-        <span class="preset-emoji">🎛️</span>
-        <span class="preset-label">自定义</span>
-        <span class="preset-desc">手动调节参数</span>
-      </button>
+    <div class="card-title">🗄️ 指纹库</div>
+    <div class="fp-db" id="fpDb">
+      <div class="fp-db-title">已训练预设 <span class="count" id="fpCount">0</span></div>
+      <div id="fpList" style="color:#555577;font-size:0.8rem;text-align:center;padding:16px;">还没有训练数据，上传音频对开始训练吧</div>
+    </div>
+    <button class="btn-primary" id="resetDbBtn" style="margin-top:12px;font-size:0.75rem;padding:8px;">
+      <span>🗑️</span> 重置指纹库
+    </button>
+  </div>
+</div>
+
+<!-- ==================== TAB 2: 识别模式 ==================== -->
+<div class="tab-panel" id="panel-identify">
+  <div class="card">
+    <div class="card-title">🔍 自动识别变声类型</div>
+    <p style="font-size:0.78rem;color:#8888aa;margin-bottom:14px;">上传一段<strong style="color:#ff00aa;">变声后的音频</strong>，系统自动匹配指纹库中最相似的预设，告诉你它最可能是哪种变声效果。</p>
+    <div class="upload-zone" id="identifyZone">
+      <span class="upload-icon">🔎</span>
+      <p class="upload-text">拖拽变声音频到此处，或点击选择</p>
+      <p class="upload-hint">支持 MP3 / WAV / M4A / OGG</p>
+      <input type="file" id="identifyInput" accept="audio/mp3,audio/wav,audio/m4a,audio/ogg,audio/mpeg,audio/x-wav,audio/x-m4a,.mp3,.wav,.m4a,.ogg" />
+    </div>
+    <div class="file-info" id="identifyFileInfo">
+      <span class="fi-icon">🎵</span>
+      <span class="fi-name" id="identifyFileName">-</span>
+      <span class="fi-duration" id="identifyFileDuration">00:00</span>
+      <button class="fi-remove" id="identifyFileRemove">✕</button>
+    </div>
+    <button class="btn-accent" id="identifyBtn" disabled style="margin-top:12px;">
+      <span>🔬</span> 开始识别
+    </button>
+    <div class="identify-result" id="identifyResults"></div>
+  </div>
+</div>
+
+<!-- ==================== TAB 3: 还原模式 ==================== -->
+<div class="tab-panel" id="panel-restore">
+  <div class="card">
+    <div class="card-title">🎯 选择还原预设</div>
+    <div class="preset-grid" id="presetGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📁 上传待还原音频</div>
+    <div class="upload-zone" id="restoreZone">
+      <span class="upload-icon">📁</span>
+      <p class="upload-text">拖拽变声音频到此处，或点击选择</p>
+      <p class="upload-hint">支持 MP3 / WAV / M4A / OGG</p>
+      <input type="file" id="restoreInput" accept="audio/mp3,audio/wav,audio/m4a,audio/ogg,audio/mpeg,audio/x-wav,audio/x-m4a,.mp3,.wav,.m4a,.ogg" />
+    </div>
+    <div class="file-info" id="restoreFileInfo">
+      <span class="fi-icon">🎵</span>
+      <span class="fi-name" id="restoreFileName">-</span>
+      <span class="fi-duration" id="restoreFileDuration">00:00</span>
+      <button class="fi-remove" id="restoreFileRemove">✕</button>
     </div>
   </div>
-
-  <!-- Parameters Card -->
-  <div class="card" id="paramsCard">
+  <div class="card" id="restoreParamsCard">
     <div class="card-title">参数微调</div>
     <div class="slider-group">
-      <div class="slider-label">
-        <span>音高偏移（半音）</span>
-        <span class="slider-value" id="pitchVal">-4</span>
-      </div>
-      <input type="range" id="pitchShift" min="-12" max="12" value="-4" step="1" />
+      <div class="slider-label"><span>音高偏移（半音）</span><span class="slider-value" id="pitchVal">0</span></div>
+      <input type="range" id="pitchShift" min="-12" max="12" value="0" step="1" />
     </div>
     <div class="slider-group">
-      <div class="slider-label">
-        <span>共振峰调节</span>
-        <span class="slider-value" id="formantVal">0.85</span>
-      </div>
-      <input type="range" id="formantShift" min="50" max="150" value="85" step="1" />
+      <div class="slider-label"><span>共振峰调节</span><span class="slider-value" id="formantVal">1.00</span></div>
+      <input type="range" id="formantShift" min="50" max="150" value="100" step="1" />
     </div>
     <div class="slider-group">
-      <div class="slider-label">
-        <span>速度调节</span>
-        <span class="slider-value" id="speedVal">1.00</span>
-      </div>
+      <div class="slider-label"><span>速度调节</span><span class="slider-value" id="speedVal">1.00</span></div>
       <input type="range" id="speedShift" min="50" max="150" value="100" step="1" />
     </div>
   </div>
-
-  <!-- Waveform Card -->
   <div class="card">
     <div class="card-title">音频波形</div>
     <div class="waveform-container" id="waveformContainer">
       <canvas id="waveformCanvas"></canvas>
       <div class="wf-placeholder" id="wfPlaceholder">上传音频后显示波形</div>
     </div>
-    <div class="progress-bar" id="progressBar">
-      <div class="fill" id="progressFill"></div>
-    </div>
+    <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
   </div>
-
-  <!-- Playback Card -->
   <div class="card">
     <div class="card-title">播放控制</div>
     <div class="playback-row">
-      <button class="play-btn original-btn" id="playOriginal" disabled>
-        <span>🔊</span> 播放原声
-      </button>
-      <button class="play-btn" id="playRestored" disabled>
-        <span>🔄</span> 播放还原
-      </button>
+      <button class="play-btn original-btn" id="playOriginal" disabled><span>🔊</span> 播放原声</button>
+      <button class="play-btn" id="playRestored" disabled><span>🔄</span> 播放还原</button>
     </div>
-    <button class="download-btn" id="downloadBtn" disabled>
-      <span>💾</span> 下载还原音频 (WAV)
-    </button>
+    <button class="btn-accent" id="downloadBtn" disabled style="margin-top:10px;"><span>💾</span> 下载还原音频 (WAV)</button>
   </div>
 </div>
+</div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
 (function(){
-  'use strict';
+'use strict';
+const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
 
-  // ===== DOM Refs =====
-  const $ = (s) => document.querySelector(s);
-  const uploadZone = $('#uploadZone');
-  const fileInput = $('#fileInput');
-  const fileInfo = $('#fileInfo');
-  const fileName = $('#fileName');
-  const fileDuration = $('#fileDuration');
-  const fileRemove = $('#fileRemove');
-  const presetGrid = $('#presetGrid');
-  const pitchShift = $('#pitchShift');
-  const formantShift = $('#formantShift');
-  const speedShift = $('#speedShift');
-  const pitchVal = $('#pitchVal');
-  const formantVal = $('#formantVal');
-  const speedVal = $('#speedVal');
-  const playOriginal = $('#playOriginal');
-  const playRestored = $('#playRestored');
-  const downloadBtn = $('#downloadBtn');
-  const waveformCanvas = $('#waveformCanvas');
-  const wfPlaceholder = $('#wfPlaceholder');
-  const progressBar = $('#progressBar');
-  const progressFill = $('#progressFill');
-  const toast = $('#toast');
+// ===== Toast =====
+let toastTimer;
+function showToast(msg){
+  clearTimeout(toastTimer);
+  $('#toast').textContent=msg;
+  $('#toast').classList.add('show');
+  toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),2500);
+}
+function fmtTime(sec){
+  if(!isFinite(sec)||sec<0)return'00:00';
+  const m=Math.floor(sec/60),s=Math.floor(sec%60);
+  return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
 
-  // Calibration DOM
-  const calibOriginalZone = $('#calibOriginalZone');
-  const calibChangedZone = $('#calibChangedZone');
-  const calibOrigInput = $('#calibOrigInput');
-  const calibChangedInput = $('#calibChangedInput');
-  const calibOrigName = $('#calibOrigName');
-  const calibChangedName = $('#calibChangedName');
-  const calibOrigDur = $('#calibOrigDur');
-  const calibChangedDur = $('#calibChangedDur');
-  const calibOrigRemove = $('#calibOrigRemove');
-  const calibChangedRemove = $('#calibChangedRemove');
-  const analyzeBtn = $('#analyzeBtn');
-  const calibResult = $('#calibResult');
-  const crPitch = $('#crPitch');
-  const crFormant = $('#crFormant');
-  const crSpeed = $('#crSpeed');
-  const crConfidence = $('#crConfidence');
-  const calibApplyBtn = $('#calibApplyBtn');
+// ===== Tab Switching =====
+$$('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
+  $$('.tab-btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  $$('.tab-panel').forEach(p=>p.classList.remove('active'));
+  $('#panel-'+b.dataset.tab).classList.add('active');
+}));
 
-  // ===== State =====
-  let audioBuffer = null;
-  let restoredBuffer = null;
-  let calibOrigBuffer = null;
-  let calibChangedBuffer = null;
-  let calibAnalysis = null; // { pitch, formant, speed, confidence }
-  let audioCtx = null;
-  let currentSource = null;
-  let currentPlaying = null; // 'original' | 'restored' | null
-  let animationId = null;
-  let analyserNode = null;
-  let currentPreset = 'monkey';
+// ===== Audio Context =====
+let audioCtx=null;
+function getCtx(){audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
 
-  // ===== Presets =====
-  const presets = {
-    monkey:  { pitch: -4,  formant: 85,  speed: 100, desc: '猴哥音还原：降调 3-4 半音 + 共振峰调整' },
-    loli:    { pitch: -6,  formant: 78,  speed: 100, desc: '萝莉音还原：降调 5-6 半音 + 共振峰调整' },
-    uncle:   { pitch: 3,   formant: 108, speed: 100, desc: '大叔音还原：升调 2-3 半音' },
-    robot:   { pitch: 0,   formant: 100, speed: 100, desc: '机器人还原：去除 Vocoder 调制效果' },
-    reverb:  { pitch: 0,   formant: 100, speed: 100, desc: '回声/混响还原：去混响处理' },
-    custom:  { pitch: 0,   formant: 100, speed: 100, desc: '自定义参数调节' },
+// ===== Fingerprint Database (persisted in localStorage) =====
+const STORAGE_KEY='voice_restorer_fp_db';
+function loadDb(){
+  try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||{};}
+  catch(e){return{};}
+}
+function saveDb(db){localStorage.setItem(STORAGE_KEY,JSON.stringify(db));}
+let fpDb=loadDb();
+
+function renderFpDb(){
+  const keys=Object.keys(fpDb);
+  $('#fpCount').textContent=keys.length;
+  const list=$('#fpList');
+  if(keys.length===0){
+    list.innerHTML='<div style="color:#555577;font-size:0.8rem;text-align:center;padding:16px;">还没有训练数据，上传音频对开始训练吧</div>';
+    return;
+  }
+  list.innerHTML=keys.map(k=>{
+    const f=fpDb[k];
+    const avgPitch=f.sumPitch/f.rounds;
+    const avgFormant=f.sumFormant/f.rounds;
+    const avgSpeed=f.sumSpeed/f.rounds;
+    return`<div class="fp-item">
+      <span class="fp-icon">🎛️</span>
+      <div class="fp-info">
+        <div class="fp-name">${k}</div>
+        <div class="fp-meta">音高 ${avgPitch>0?'+':''}${avgPitch.toFixed(1)}半音 | 共振峰 ${avgFormant.toFixed(2)} | 速度 ${avgSpeed.toFixed(2)}</div>
+      </div>
+      <span class="fp-rounds">${f.rounds}轮</span>
+      <button class="fp-delete" data-name="${k}">✕</button>
+    </div>`;
+  }).join('');
+  // Delete handlers
+  list.querySelectorAll('.fp-delete').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();
+    delete fpDb[b.dataset.name];
+    saveDb(fpDb);
+    renderFpDb();
+    renderPresetGrid();
+    showToast('已删除预设：'+b.dataset.name);
+  }));
+}
+
+$('#resetDbBtn').addEventListener('click',()=>{
+  if(confirm('确定要清空所有训练数据吗？此操作不可恢复。')){
+    fpDb={};saveDb(fpDb);renderFpDb();renderPresetGrid();
+    showToast('指纹库已重置');
+  }
+});
+
+// ===== Audio Analysis Engine =====
+function detectPitchShift(origBuffer,changedBuffer){
+  function getF0(buffer){
+    const data=buffer.getChannelData(0);
+    const sampleRate=buffer.sampleRate;
+    const segLen=Math.min(data.length,Math.floor(sampleRate*1.0));
+    const offset=Math.max(0,Math.floor((data.length-segLen)/2));
+    const segment=data.slice(offset,offset+segLen);
+    const minLag=Math.floor(sampleRate/400),maxLag=Math.floor(sampleRate/60);
+    let bestLag=minLag,bestCorr=-Infinity;
+    for(let lag=minLag;lag<=maxLag;lag++){
+      let corr=0;
+      for(let i=0;i<segLen-lag;i++)corr+=segment[i]*segment[i+lag];
+      if(corr>bestCorr){bestCorr=corr;bestLag=lag;}
+    }
+    if(bestCorr<=0)return null;
+    return sampleRate/bestLag;
+  }
+  const origF0=getF0(origBuffer),changedF0=getF0(changedBuffer);
+  if(!origF0||!changedF0)return null;
+  return Math.round(12*Math.log2(changedF0/origF0));
+}
+
+function detectFormantShift(origBuffer,changedBuffer){
+  function getSpectralRatio(buffer){
+    const data=buffer.getChannelData(0);
+    const sampleRate=buffer.sampleRate;
+    const segLen=Math.min(data.length,Math.floor(sampleRate*0.5));
+    const offset=Math.max(0,Math.floor((data.length-segLen)/2));
+    const segment=data.slice(offset,offset+segLen);
+    let highE=0,lowE=0;
+    for(let i=1;i<segment.length;i++){
+      const diff=segment[i]-segment[i-1];
+      highE+=diff*diff;lowE+=segment[i]*segment[i];
+    }
+    if(lowE<1e-10)return 1.0;
+    return Math.sqrt(highE/lowE);
+  }
+  const origSC=getSpectralRatio(origBuffer),changedSC=getSpectralRatio(changedBuffer);
+  if(!origSC||!changedSC||origSC<1e-10)return 1.0;
+  return Math.max(0.5,Math.min(1.5,changedSC/origSC));
+}
+
+function detectSpeedChange(origBuffer,changedBuffer){
+  const origDur=origBuffer.duration,changedDur=changedBuffer.duration;
+  if(origDur<0.1||changedDur<0.1)return 1.0;
+  return Math.max(0.5,Math.min(1.5,origDur/changedDur));
+}
+
+function analyzePair(origBuffer,changedBuffer){
+  const pitch=detectPitchShift(origBuffer,changedBuffer);
+  const formant=detectFormantShift(origBuffer,changedBuffer);
+  const speed=detectSpeedChange(origBuffer,changedBuffer);
+  let confidence=70;
+  if(pitch!==null)confidence+=15;
+  if(formant>0.8&&formant<1.2)confidence-=5;
+  if(speed>0.95&&speed<1.05)confidence+=10;
+  confidence=Math.min(99,Math.max(30,confidence));
+  return{
+    pitch:pitch!==null?-pitch:0,
+    formant:formant,
+    speed:speed,
+    confidence:confidence
   };
+}
 
-  // ===== Toast =====
-  let toastTimer;
-  function showToast(msg){
-    clearTimeout(toastTimer);
-    toast.textContent = msg;
-    toast.classList.add('show');
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
-  }
-
-  // ===== Format Time =====
-  function fmtTime(sec){
-    if(!isFinite(sec) || sec < 0) return '00:00';
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-  }
-
-  // ===== File Handling =====
-  uploadZone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', (e) => {
-    if(e.target.files.length) loadFile(e.target.files[0]);
+// ===== Dual Zone Helper =====
+function setupDualZone(zone,input,nameEl,durEl,removeBtn,setBuffer,getBuffer){
+  zone.addEventListener('click',()=>input.click());
+  input.addEventListener('change',e=>{if(e.target.files.length)loadDualFile(e.target.files[0],zone,nameEl,durEl,setBuffer);});
+  zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag-over');});
+  zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
+  zone.addEventListener('drop',e=>{
+    e.preventDefault();zone.classList.remove('drag-over');
+    const f=e.dataTransfer.files[0];if(f)loadDualFile(f,zone,nameEl,durEl,setBuffer);
   });
-
-  uploadZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadZone.classList.add('drag-over');
+  removeBtn.addEventListener('click',e=>{
+    e.stopPropagation();setBuffer(null);zone.classList.remove('filled');
+    nameEl.textContent='点击或拖拽上传';durEl.textContent='';input.value='';
   });
-  uploadZone.addEventListener('dragleave', () => {
-    uploadZone.classList.remove('drag-over');
-  });
-  uploadZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if(file) loadFile(file);
-  });
+}
 
-  fileRemove.addEventListener('click', () => {
-    stopPlayback();
-    audioBuffer = null;
-    restoredBuffer = null;
-    fileInfo.classList.remove('show');
-    fileInput.value = '';
-    playOriginal.disabled = true;
-    playRestored.disabled = true;
-    downloadBtn.disabled = true;
-    drawEmptyWaveform();
-    wfPlaceholder.style.display = 'flex';
-    progressBar.classList.remove('show');
-  });
+async function loadDualFile(file,zone,nameEl,durEl,setBuffer){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(!['mp3','wav','m4a','ogg','mpeg','aac','flac','webm'].includes(ext)){showToast('不支持的格式');return;}
+  try{
+    const buf=await file.arrayBuffer();
+    const audioBuf=await getCtx().decodeAudioData(buf);
+    setBuffer(audioBuf);zone.classList.add('filled');
+    nameEl.textContent=file.name;durEl.textContent=fmtTime(audioBuf.duration);
+  }catch(err){console.error(err);showToast('音频加载失败');}
+}
 
-  // ===== Calibration Logic =====
-  function updateAnalyzeBtn(){
-    analyzeBtn.disabled = !(calibOrigBuffer && calibChangedBuffer);
-  }
+// ===== TAB 1: Training =====
+let trainOrigBuffer=null,trainChangedBuffer=null;
+const trainOrigZone=$('#trainOrigZone'),trainChangedZone=$('#trainChangedZone');
+const trainOrigName=$('#trainOrigName'),trainChangedName=$('#trainChangedName');
+const trainOrigDur=$('#trainOrigDur'),trainChangedDur=$('#trainChangedDur');
+const trainOrigRemove=$('#trainOrigRemove'),trainChangedRemove=$('#trainChangedRemove');
+const trainOrigInput=$('#trainOrigInput'),trainChangedInput=$('#trainChangedInput');
+const trainAnalyzeBtn=$('#trainAnalyzeBtn');
+const trainResult=$('#trainResult');
+const trainPresetName=$('#trainPresetName');
 
-  function setupCalibZone(zone, input, nameEl, durEl, removeBtn, setBuffer){
-    zone.addEventListener('click', () => input.click());
-    input.addEventListener('change', (e) => {
-      if(e.target.files.length) loadCalibFile(e.target.files[0], zone, nameEl, durEl, setBuffer);
-    });
-    zone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      zone.classList.add('drag-over');
-    });
-    zone.addEventListener('dragleave', () => {
-      zone.classList.remove('drag-over');
-    });
-    zone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      zone.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if(file) loadCalibFile(file, zone, nameEl, durEl, setBuffer);
-    });
-    removeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setBuffer(null);
-      zone.classList.remove('filled');
-      nameEl.textContent = '点击或拖拽上传';
-      durEl.textContent = '';
-      input.value = '';
-      calibAnalysis = null;
-      calibResult.classList.remove('show');
-      updateAnalyzeBtn();
-    });
-  }
+function updateTrainBtn(){
+  trainAnalyzeBtn.disabled=!(trainOrigBuffer&&trainChangedBuffer&&trainPresetName.value.trim());
+}
+trainPresetName.addEventListener('input',updateTrainBtn);
 
-  async function loadCalibFile(file, zone, nameEl, durEl, setBuffer){
-    const ext = file.name.split('.').pop().toLowerCase();
-    const allowed = ['mp3','wav','m4a','ogg','mpeg','aac','flac','webm'];
-    if(!allowed.includes(ext)){
-      showToast('不支持的音频格式');
-      return;
-    }
-    try{
-      const arrayBuf = await file.arrayBuffer();
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      const buffer = await audioCtx.decodeAudioData(arrayBuf);
-      setBuffer(buffer);
-      zone.classList.add('filled');
-      nameEl.textContent = file.name;
-      durEl.textContent = fmtTime(buffer.duration);
-      calibAnalysis = null;
-      calibResult.classList.remove('show');
-      updateAnalyzeBtn();
-      showToast('校准音频加载成功');
-    }catch(err){
-      console.error('Calib load error:', err);
-      showToast('音频加载失败');
-    }
-  }
+setupDualZone(trainOrigZone,trainOrigInput,trainOrigName,trainOrigDur,trainOrigRemove,
+  b=>{trainOrigBuffer=b;updateTrainBtn();},()=>trainOrigBuffer);
+setupDualZone(trainChangedZone,trainChangedInput,trainChangedName,trainChangedDur,trainChangedRemove,
+  b=>{trainChangedBuffer=b;updateTrainBtn();},()=>trainChangedBuffer);
 
-  setupCalibZone(calibOriginalZone, calibOrigInput, calibOrigName, calibOrigDur, calibOrigRemove, (b) => { calibOrigBuffer = b; });
-  setupCalibZone(calibChangedZone, calibChangedInput, calibChangedName, calibChangedDur, calibChangedRemove, (b) => { calibChangedBuffer = b; });
+trainAnalyzeBtn.addEventListener('click',async()=>{
+  if(!trainOrigBuffer||!trainChangedBuffer)return;
+  const name=trainPresetName.value.trim();
+  if(!name){showToast('请输入预设名称');return;}
 
-  // ===== Audio Analysis Engine =====
-  function detectPitchShift(origBuffer, changedBuffer){
-    // Use autocorrelation to estimate fundamental frequency
-    function getF0(buffer){
-      const data = buffer.getChannelData(0);
-      const sampleRate = buffer.sampleRate;
-      // Take a representative segment (middle 1 second or full)
-      const segLen = Math.min(data.length, Math.floor(sampleRate * 1.0));
-      const offset = Math.max(0, Math.floor((data.length - segLen) / 2));
-      const segment = data.slice(offset, offset + segLen);
+  trainAnalyzeBtn.disabled=true;
+  trainAnalyzeBtn.classList.add('analyzing');
+  trainAnalyzeBtn.innerHTML='<span>⏳</span> 分析中...';
+  trainResult.classList.remove('show');
 
-      // Simple autocorrelation pitch detection
-      const minLag = Math.floor(sampleRate / 400);  // ~400 Hz max
-      const maxLag = Math.floor(sampleRate / 60);   // ~60 Hz min
-      let bestLag = minLag;
-      let bestCorr = -Infinity;
+  await new Promise(r=>setTimeout(r,50));
+  try{
+    const result=analyzePair(trainOrigBuffer,trainChangedBuffer);
+    // Save to DB (cumulative averaging)
+    if(!fpDb[name])fpDb[name]={sumPitch:0,sumFormant:0,sumSpeed:0,rounds:0};
+    fpDb[name].sumPitch+=result.pitch;
+    fpDb[name].sumFormant+=result.formant;
+    fpDb[name].sumSpeed+=result.speed;
+    fpDb[name].rounds+=1;
+    saveDb(fpDb);
 
-      for(let lag = minLag; lag <= maxLag; lag++){
-        let corr = 0;
-        for(let i = 0; i < segLen - lag; i++){
-          corr += segment[i] * segment[i + lag];
-        }
-        if(corr > bestCorr){
-          bestCorr = corr;
-          bestLag = lag;
-        }
+    $('#trPitch').textContent=result.pitch>0?'+'+result.pitch:String(result.pitch);
+    $('#trFormant').textContent=result.formant.toFixed(2);
+    $('#trSpeed').textContent=result.speed.toFixed(2);
+    $('#trConfidence').textContent=result.confidence+'%';
+    trainResult.classList.add('show');
+    renderFpDb();
+    renderPresetGrid();
+    showToast('训练完成！「'+name+'」第 '+fpDb[name].rounds+' 轮，置信度 '+result.confidence+'%');
+  }catch(err){console.error(err);showToast('分析失败');}
+  trainAnalyzeBtn.classList.remove('analyzing');
+  trainAnalyzeBtn.innerHTML='<span>🔬</span> 分析并加入训练';
+  updateTrainBtn();
+});
+
+// ===== TAB 2: Identify =====
+let identifyBuffer=null;
+const identifyZone=$('#identifyZone'),identifyInput=$('#identifyInput');
+const identifyFileInfo=$('#identifyFileInfo'),identifyFileName=$('#identifyFileName');
+const identifyFileDuration=$('#identifyFileDuration'),identifyFileRemove=$('#identifyFileRemove');
+const identifyBtn=$('#identifyBtn'),identifyResults=$('#identifyResults');
+
+identifyZone.addEventListener('click',()=>identifyInput.click());
+identifyInput.addEventListener('change',e=>{if(e.target.files.length)loadIdentifyFile(e.target.files[0]);});
+identifyZone.addEventListener('dragover',e=>{e.preventDefault();identifyZone.classList.add('drag-over');});
+identifyZone.addEventListener('dragleave',()=>identifyZone.classList.remove('drag-over'));
+identifyZone.addEventListener('drop',e=>{
+  e.preventDefault();identifyZone.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];if(f)loadIdentifyFile(f);
+});
+identifyFileRemove.addEventListener('click',()=>{
+  identifyBuffer=null;identifyFileInfo.classList.remove('show');identifyInput.value='';
+  identifyBtn.disabled=true;identifyResults.innerHTML='';
+});
+
+async function loadIdentifyFile(file){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(!['mp3','wav','m4a','ogg','mpeg','aac','flac','webm'].includes(ext)){showToast('不支持的格式');return;}
+  try{
+    const buf=await file.arrayBuffer();
+    identifyBuffer=await getCtx().decodeAudioData(buf);
+    identifyFileName.textContent=file.name;
+    identifyFileDuration.textContent=fmtTime(identifyBuffer.duration);
+    identifyFileInfo.classList.add('show');
+    identifyBtn.disabled=false;
+    identifyResults.innerHTML='';
+  }catch(err){console.error(err);showToast('加载失败');}
+}
+
+identifyBtn.addEventListener('click',async()=>{
+  if(!identifyBuffer)return;
+  const keys=Object.keys(fpDb);
+  if(keys.length===0){showToast('指纹库为空，请先去训练模式添加预设');return;}
+
+  identifyBtn.disabled=true;
+  identifyBtn.classList.add('analyzing');
+  identifyBtn.innerHTML='<span>⏳</span> 识别中...';
+
+  await new Promise(r=>setTimeout(r,50));
+  try{
+    // For identification, we compare the changed audio against each fingerprint's expected profile
+    // We use spectral centroid as a quick fingerprint of the changed audio
+    function getSpectralFingerprint(buffer){
+      const data=buffer.getChannelData(0);
+      const sampleRate=buffer.sampleRate;
+      const segLen=Math.min(data.length,Math.floor(sampleRate*1.0));
+      const offset=Math.max(0,Math.floor((data.length-segLen)/2));
+      const segment=data.slice(offset,offset+segLen);
+      let highE=0,lowE=0,zcr=0;
+      for(let i=1;i<segment.length;i++){
+        const diff=segment[i]-segment[i-1];
+        highE+=diff*diff;lowE+=segment[i]*segment[i];
+        if((segment[i]>=0)!==(segment[i-1]>=0))zcr++;
       }
-
-      if(bestCorr <= 0) return null;
-      return sampleRate / bestLag;
-    }
-
-    // Detect pitch from multiple segments and average
-    const origF0 = getF0(origBuffer);
-    const changedF0 = getF0(changedBuffer);
-
-    if(!origF0 || !changedF0) return null;
-
-    // Convert ratio to semitones: semitones = 12 * log2(f2/f1)
-    const semitones = 12 * Math.log2(changedF0 / origF0);
-    return Math.round(semitones);
-  }
-
-  function detectFormantShift(origBuffer, changedBuffer){
-    // Compare spectral centroids as a proxy for formant shift
-    function getSpectralCentroid(buffer){
-      const data = buffer.getChannelData(0);
-      const sampleRate = buffer.sampleRate;
-      const segLen = Math.min(data.length, Math.floor(sampleRate * 0.5));
-      const offset = Math.max(0, Math.floor((data.length - segLen) / 2));
-      const segment = data.slice(offset, offset + segLen);
-
-      // Simple FFT-like approach: compute weighted frequency mean
-      // We'll use zero-crossing rate and energy distribution
-      let totalEnergy = 0;
-      let weightedFreq = 0;
-
-      // Use bandpass energy ratios to estimate formant position
-      const bands = [
-        { low: 200, high: 600 },
-        { low: 600, high: 1500 },
-        { low: 1500, high: 3000 },
-        { low: 3000, high: 5000 },
-      ];
-
-      // Simple time-domain band energy estimation via filtered energy
-      // We approximate by using the ratio of high-frequency to low-frequency energy
-      let lowEnergy = 0;
-      let highEnergy = 0;
-
-      for(let i = 1; i < segment.length; i++){
-        const diff = segment[i] - segment[i - 1];
-        highEnergy += diff * diff; // high freq proxy
-        lowEnergy += segment[i] * segment[i]; // total energy proxy
-      }
-
-      if(lowEnergy < 1e-10) return 1.0;
-      // Ratio of high-freq energy to total energy
-      return Math.sqrt(highEnergy / lowEnergy);
-    }
-
-    const origSC = getSpectralCentroid(origBuffer);
-    const changedSC = getSpectralCentroid(changedBuffer);
-
-    if(!origSC || !changedSC || origSC < 1e-10) return 1.0;
-
-    // Return formant ratio (changed / original)
-    // Clamp to reasonable range
-    return Math.max(0.5, Math.min(1.5, changedSC / origSC));
-  }
-
-  function detectSpeedChange(origBuffer, changedBuffer){
-    // Compare durations to detect speed change
-    const origDur = origBuffer.duration;
-    const changedDur = changedBuffer.duration;
-
-    if(origDur < 0.1 || changedDur < 0.1) return 1.0;
-
-    // Speed = original duration / changed duration
-    // If changed is shorter, speed > 1 (sped up)
-    const speed = origDur / changedDur;
-    return Math.max(0.5, Math.min(1.5, speed));
-  }
-
-  analyzeBtn.addEventListener('click', async () => {
-    if(!calibOrigBuffer || !calibChangedBuffer) return;
-
-    analyzeBtn.disabled = true;
-    analyzeBtn.classList.add('analyzing');
-    analyzeBtn.innerHTML = '<span>⏳</span> 分析中...';
-    calibResult.classList.remove('show');
-
-    // Run analysis in next tick to allow UI update
-    await new Promise(r => setTimeout(r, 50));
-
-    try{
-      const pitch = detectPitchShift(calibOrigBuffer, calibChangedBuffer);
-      const formant = detectFormantShift(calibOrigBuffer, calibChangedBuffer);
-      const speed = detectSpeedChange(calibOrigBuffer, calibChangedBuffer);
-
-      // Calculate confidence based on data quality
-      let confidence = 70;
-      if(pitch !== null) confidence += 15;
-      if(formant > 0.8 && formant < 1.2) confidence -= 5;
-      if(speed > 0.95 && speed < 1.05) confidence += 10;
-      confidence = Math.min(99, Math.max(30, confidence));
-
-      calibAnalysis = {
-        pitch: pitch !== null ? -pitch : 0, // Invert: we need opposite shift to restore
-        formant: formant,
-        speed: speed,
-        confidence: confidence
+      return{
+        spectralRatio:lowE>1e-10?Math.sqrt(highE/lowE):1.0,
+        zcr:zcr/segLen,
+        duration:buffer.duration
       };
-
-      // Display results
-      crPitch.textContent = calibAnalysis.pitch > 0 ? '+' + calibAnalysis.pitch : String(calibAnalysis.pitch);
-      crFormant.textContent = calibAnalysis.formant.toFixed(2);
-      crSpeed.textContent = calibAnalysis.speed.toFixed(2);
-      crConfidence.textContent = calibAnalysis.confidence + '%';
-
-      calibResult.classList.add('show');
-      showToast('分析完成！置信度 ' + calibAnalysis.confidence + '%');
-    }catch(err){
-      console.error('Analysis error:', err);
-      showToast('分析失败，请重试');
     }
 
-    analyzeBtn.classList.remove('analyzing');
-    analyzeBtn.innerHTML = '<span>🔬</span> 开始分析差异';
-    updateAnalyzeBtn();
-  });
+    const changedFp=getSpectralFingerprint(identifyBuffer);
 
-  calibApplyBtn.addEventListener('click', () => {
-    if(!calibAnalysis) return;
-
-    // Apply analyzed parameters to sliders
-    pitchShift.value = calibAnalysis.pitch;
-    formantShift.value = Math.round(calibAnalysis.formant * 100);
-    speedShift.value = Math.round(calibAnalysis.speed * 100);
-    updateSliderLabels();
-
-    // Switch to custom preset
-    currentPreset = 'custom';
-    presetGrid.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    const customBtn = presetGrid.querySelector('[data-preset="custom"]');
-    if(customBtn) customBtn.classList.add('active');
-
-    // If we have a target audio loaded, process it
-    if(audioBuffer) processAudio();
-
-    showToast('校准参数已应用！置信度 ' + calibAnalysis.confidence + '%');
-  });
-
-  async function loadFile(file){
-    const ext = file.name.split('.').pop().toLowerCase();
-    const allowed = ['mp3','wav','m4a','ogg','mpeg','aac','flac','webm'];
-    if(!allowed.includes(ext)){
-      showToast('不支持的音频格式，请选择 MP3/WAV/M4A/OGG');
-      return;
-    }
-
-    try{
-      const arrayBuf = await file.arrayBuffer();
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
-
-      fileName.textContent = file.name;
-      fileDuration.textContent = fmtTime(audioBuffer.duration);
-      fileInfo.classList.add('show');
-      playOriginal.disabled = false;
-      playRestored.disabled = false;
-      downloadBtn.disabled = false;
-
-      // Auto-process
-      processAudio();
-      drawWaveform(audioBuffer);
-      wfPlaceholder.style.display = 'none';
-      showToast('音频加载成功 — ' + fmtTime(audioBuffer.duration));
-    }catch(err){
-      console.error('Audio load error:', err);
-      showToast('音频加载失败，请检查文件是否损坏');
-    }
-  }
-
-  // ===== Preset Selection =====
-  presetGrid.addEventListener('click', (e) => {
-    const btn = e.target.closest('.preset-btn');
-    if(!btn) return;
-    currentPreset = btn.dataset.preset;
-    presetGrid.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-
-    const p = presets[currentPreset];
-    pitchShift.value = p.pitch;
-    formantShift.value = p.formant;
-    speedShift.value = p.speed;
-    updateSliderLabels();
-
-    if(audioBuffer) processAudio();
-  });
-
-  // ===== Slider Updates =====
-  function updateSliderLabels(){
-    pitchVal.textContent = Number(pitchShift.value) > 0 ? '+' + pitchShift.value : pitchShift.value;
-    formantVal.textContent = (formantShift.value / 100).toFixed(2);
-    speedVal.textContent = (speedShift.value / 100).toFixed(2);
-  }
-
-  pitchShift.addEventListener('input', () => {
-    updateSliderLabels();
-    if(currentPreset !== 'custom'){
-      presetGrid.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      const customBtn = presetGrid.querySelector('[data-preset="custom"]');
-      if(customBtn) customBtn.classList.add('active');
-      currentPreset = 'custom';
-    }
-    if(audioBuffer) processAudio();
-  });
-  formantShift.addEventListener('input', () => {
-    updateSliderLabels();
-    if(currentPreset !== 'custom'){
-      presetGrid.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      const customBtn = presetGrid.querySelector('[data-preset="custom"]');
-      if(customBtn) customBtn.classList.add('active');
-      currentPreset = 'custom';
-    }
-    if(audioBuffer) processAudio();
-  });
-  speedShift.addEventListener('input', () => {
-    updateSliderLabels();
-    if(currentPreset !== 'custom'){
-      presetGrid.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-      const customBtn = presetGrid.querySelector('[data-preset="custom"]');
-      if(customBtn) customBtn.classList.add('active');
-      currentPreset = 'custom';
-    }
-    if(audioBuffer) processAudio();
-  });
-
-  // ===== Audio Processing =====
-  function processAudio(){
-    if(!audioBuffer) return;
-
-    const pitch = parseInt(pitchShift.value);       // semitones
-    const formant = parseInt(formantShift.value) / 100; // 0.5 ~ 1.5
-    const speed = parseInt(speedShift.value) / 100;     // 0.5 ~ 1.5
-    const preset = currentPreset;
-
-    // Calculate playback rate for pitch shift
-    // 1 semitone = 2^(1/12) ≈ 1.059463
-    const rateForPitch = Math.pow(2, -pitch / 12);
-    const totalRate = rateForPitch * speed;
-
-    // Create offline context for rendering
-    const sampleRate = audioBuffer.sampleRate;
-    const channels = audioBuffer.numberOfChannels;
-    const length = Math.floor(audioBuffer.length / speed);
-    const offlineCtx = new OfflineAudioContext(channels, length, sampleRate);
-
-    // Source
-    const source = offlineCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.playbackRate.value = totalRate;
-
-    // Formant filter (simulated via bandpass/peaking filters)
-    // For formant shift: we use a series of peaking filters to reshape spectrum
-    const formantGain = offlineCtx.createGain();
-    formantGain.gain.value = 1.0;
-
-    // Create formant-shaping filter chain
-    const filters = [];
-    // Typical formant frequencies (male voice formants scaled)
-    const baseFormants = [500, 1500, 2500, 3500, 4500];
-    for(const bf of baseFormants){
-      const f = offlineCtx.createBiquadFilter();
-      f.type = 'peaking';
-      f.frequency.value = bf * formant;
-      f.Q.value = 2.0;
-      f.gain.value = (formant - 1) * 6; // boost/cut based on formant shift
-      filters.push(f);
-    }
-
-    // Connect chain
-    source.connect(formantGain);
-    let lastNode = formantGain;
-    for(const f of filters){
-      lastNode.connect(f);
-      lastNode = f;
-    }
-
-    // Robot preset: add subtle comb filter to counteract vocoder
-    if(preset === 'robot'){
-      const combDelay = offlineCtx.createDelay(0.005);
-      const combGain = offlineCtx.createGain();
-      combGain.gain.value = -0.3;
-      const dryGain = offlineCtx.createGain();
-      dryGain.gain.value = 0.7;
-      lastNode.connect(dryGain);
-      lastNode.connect(combDelay);
-      combDelay.connect(combGain);
-      dryGain.connect(offlineCtx.destination);
-      combGain.connect(offlineCtx.destination);
-    }
-    // Reverb preset: no special processing needed (reverb is baked in, can't truly remove)
-    // We apply a slight transient enhancement
-    else if(preset === 'reverb'){
-      // Use a high-pass to reduce low-end muddiness from reverb
-      const hp = offlineCtx.createBiquadFilter();
-      hp.type = 'highpass';
-      hp.frequency.value = 120;
-      hp.Q.value = 0.7;
-      lastNode.connect(hp);
-      hp.connect(offlineCtx.destination);
-    }
-    else{
-      lastNode.connect(offlineCtx.destination);
-    }
-
-    source.start(0);
-
-    offlineCtx.startRendering().then((rendered) => {
-      restoredBuffer = rendered;
-      // Draw restored waveform
-      drawRestoredWaveform(rendered);
-      showToast('还原处理完成');
-    }).catch((err) => {
-      console.error('Render error:', err);
-      showToast('音频处理失败');
+    // Score each fingerprint
+    const scores=keys.map(k=>{
+      const f=fpDb[k];
+      const avgFormant=f.sumFormant/f.rounds;
+      const avgSpeed=f.sumSpeed/f.rounds;
+      // How well does this fingerprint's formant/speed match the changed audio?
+      // We use spectral ratio as a proxy for formant position
+      const formantDist=Math.abs(changedFp.spectralRatio-avgFormant);
+      const speedDist=Math.abs(1.0-avgSpeed);
+      // Combined score (lower = better match)
+      const score=formantDist*60+speedDist*40;
+      return{name:k,score:score,formant:avgFormant,speed:avgSpeed,pitch:f.sumPitch/f.rounds,rounds:f.rounds};
     });
-  }
 
-  // ===== Waveform Drawing =====
-  function drawWaveform(buffer){
-    const canvas = waveformCanvas;
-    const container = canvas.parentElement;
-    canvas.width = container.clientWidth * 2;
-    canvas.height = container.clientHeight * 2;
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
+    scores.sort((a,b)=>a.score-b.score);
+    const best=scores[0];
+    const maxScore=Math.max(...scores.map(s=>s.score));
+    const minScore=Math.min(...scores.map(s=>s.score));
+    const range=maxScore-minScore||1;
 
-    ctx.clearRect(0, 0, w, h);
+    identifyResults.innerHTML=scores.map((s,i)=>{
+      const normalizedScore=range>0?((maxScore-s.score)/range)*100:50;
+      const isBest=i===0;
+      return`<div class="id-match${isBest?' best':''}" data-name="${s.name}">
+        <span class="id-rank">#${i+1}</span>
+        <span class="id-icon">${isBest?'⭐':'🎛️'}</span>
+        <div class="id-info">
+          <div class="id-name">${s.name}</div>
+          <div class="id-detail">音高 ${s.pitch>0?'+':''}${s.pitch.toFixed(1)}半音 | 共振峰 ${s.formant.toFixed(2)} | ${s.rounds}轮训练</div>
+        </div>
+        <span class="id-score">${Math.round(normalizedScore)}%</span>
+      </div>`;
+    }).join('');
 
-    const data = buffer.getChannelData(0);
-    const step = Math.ceil(data.length / w);
-    const amp = h / 2;
+    // Click to switch to restore tab with this preset
+    identifyResults.querySelectorAll('.id-match').forEach(el=>{
+      el.addEventListener('click',()=>{
+        const name=el.dataset.name;
+        // Switch to restore tab
+        $$('.tab-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelector('[data-tab="restore"]').classList.add('active');
+        $$('.tab-panel').forEach(p=>p.classList.remove('active'));
+        $('#panel-restore').classList.add('active');
+        // Select preset
+        setTimeout(()=>{
+          const btn=$('#presetGrid').querySelector('[data-preset="'+CSS.escape(name)+'"]');
+          if(btn)btn.click();
+        },100);
+        showToast('已切换到还原模式，预设：'+name);
+      });
+    });
 
-    // Gradient
-    const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, 'rgba(0,240,255,0.6)');
-    grad.addColorStop(0.5, 'rgba(123,47,255,0.4)');
-    grad.addColorStop(1, 'rgba(0,240,255,0.6)');
+    showToast('识别完成！最匹配：'+best.name+' ('+Math.round((maxScore-best.score)/range*100)+'%)');
+  }catch(err){console.error(err);showToast('识别失败');}
+  identifyBtn.classList.remove('analyzing');
+  identifyBtn.innerHTML='<span>🔬</span> 开始识别';
+  identifyBtn.disabled=false;
+});
 
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
+// ===== TAB 3: Restore =====
+let restoreBuffer=null,restoredBuffer=null;
+let currentSource=null,currentPlaying=null,animationId=null,analyserNode=null;
+let currentPreset=null;
 
-    for(let i = 0; i < w; i++){
-      const pos = i * step;
-      let min = 1.0, max = -1.0;
-      for(let j = 0; j < step && (pos + j) < data.length; j++){
-        const v = data[pos + j];
-        if(v < min) min = v;
-        if(v > max) max = v;
-      }
-      const y1 = (1 + min) * amp;
-      const y2 = (1 + max) * amp;
-      ctx.moveTo(i, y1);
-      ctx.lineTo(i, y2);
-    }
-    ctx.stroke();
+const restoreZone=$('#restoreZone'),restoreInput=$('#restoreInput');
+const restoreFileInfo=$('#restoreFileInfo'),restoreFileName=$('#restoreFileName');
+const restoreFileDuration=$('#restoreFileDuration'),restoreFileRemove=$('#restoreFileRemove');
+const presetGrid=$('#presetGrid');
+const pitchShift=$('#pitchShift'),formantShift=$('#formantShift'),speedShift=$('#speedShift');
+const pitchVal=$('#pitchVal'),formantVal=$('#formantVal'),speedVal=$('#speedVal');
+const playOriginal=$('#playOriginal'),playRestored=$('#playRestored'),downloadBtn=$('#downloadBtn');
+const waveformCanvas=$('#waveformCanvas'),wfPlaceholder=$('#wfPlaceholder');
+const progressBar=$('#progressBar'),progressFill=$('#progressFill');
 
-    // Center line glow
-    ctx.strokeStyle = 'rgba(0,240,255,0.08)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, amp);
-    ctx.lineTo(w, amp);
-    ctx.stroke();
-  }
-
-  function drawRestoredWaveform(buffer){
-    // We just draw the same canvas but could differentiate with color
-    drawWaveform(buffer);
-  }
-
-  function drawEmptyWaveform(){
-    const canvas = waveformCanvas;
-    const container = canvas.parentElement;
-    canvas.width = container.clientWidth * 2;
-    canvas.height = container.clientHeight * 2;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
-  // ===== Live Analyser Waveform =====
-  function startLiveWaveform(sourceNode){
-    if(!audioCtx) return;
-    analyserNode = audioCtx.createAnalyser();
-    analyserNode.fftSize = 256;
-    sourceNode.connect(analyserNode);
-
-    const canvas = waveformCanvas;
-    const container = canvas.parentElement;
-    canvas.width = container.clientWidth * 2;
-    canvas.height = container.clientHeight * 2;
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
-    const bufferLength = analyserNode.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
-    function draw(){
-      animationId = requestAnimationFrame(draw);
-      analyserNode.getByteFrequencyData(dataArray);
-
-      ctx.clearRect(0, 0, w, h);
-
-      const barWidth = (w / bufferLength) * 2.5;
-      const gap = 1;
-      let x = 0;
-
-      for(let i = 0; i < bufferLength; i++){
-        const barHeight = (dataArray[i] / 255) * h * 0.9;
-        const y = h - barHeight;
-
-        // Gradient per bar
-        const grad = ctx.createLinearGradient(0, y, 0, h);
-        grad.addColorStop(0, 'rgba(0,240,255,0.9)');
-        grad.addColorStop(0.5, 'rgba(123,47,255,0.5)');
-        grad.addColorStop(1, 'rgba(0,240,255,0.1)');
-
-        ctx.fillStyle = grad;
-        ctx.fillRect(x, y, barWidth - gap, barHeight);
-
-        // Glow on top
-        ctx.fillStyle = 'rgba(0,240,255,0.3)';
-        ctx.fillRect(x, y, barWidth - gap, 2);
-
-        x += barWidth;
-      }
-    }
-    draw();
-  }
-
-  function stopLiveWaveform(){
-    if(animationId){
-      cancelAnimationFrame(animationId);
-      animationId = null;
-    }
-    analyserNode = null;
-    if(audioBuffer){
-      drawWaveform(audioBuffer);
-    }
-  }
-
-  // ===== Playback =====
-  function stopPlayback(){
-    if(currentSource){
-      try{ currentSource.stop(); }catch(e){}
-      currentSource.disconnect();
-      currentSource = null;
-    }
-    stopLiveWaveform();
-    playOriginal.classList.remove('playing');
-    playRestored.classList.remove('playing');
-    currentPlaying = null;
-    progressBar.classList.remove('show');
-  }
-
-  function playBuffer(buffer, btn){
-    stopPlayback();
-
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    if(audioCtx.state === 'suspended') audioCtx.resume();
-
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
-    currentSource = source;
-    currentPlaying = btn === playOriginal ? 'original' : 'restored';
-
-    btn.classList.add('playing');
-    startLiveWaveform(source);
-
-    // Progress
-    progressBar.classList.add('show');
-    const startTime = audioCtx.currentTime;
-    const dur = buffer.duration;
-    function updateProgress(){
-      if(!currentSource) return;
-      const elapsed = audioCtx.currentTime - startTime;
-      const pct = Math.min((elapsed / dur) * 100, 100);
-      progressFill.style.width = pct + '%';
-      if(pct < 100 && currentSource){
-        requestAnimationFrame(updateProgress);
-      }else{
-        stopPlayback();
-        if(audioBuffer) drawWaveform(audioBuffer);
-        wfPlaceholder.style.display = 'none';
-      }
-    }
-    updateProgress();
-
-    source.onended = () => {
-      stopPlayback();
-      if(audioBuffer) drawWaveform(audioBuffer);
-      wfPlaceholder.style.display = 'none';
+function renderPresetGrid(){
+  const keys=Object.keys(fpDb);
+  const builtin=[
+    {id:'monkey',emoji:'🐵',label:'猴哥音还原',desc:'降调 3-4 半音',pitch:-4,formant:85,speed:100},
+    {id:'loli',emoji:'👧',label:'萝莉音还原',desc:'降调 5-6 半音',pitch:-6,formant:78,speed:100},
+    {id:'uncle',emoji:'👨',label:'大叔音还原',desc:'升调 2-3 半音',pitch:3,formant:108,speed:100},
+    {id:'robot',emoji:'🤖',label:'机器人还原',desc:'去 Vocoder 效果',pitch:0,formant:100,speed:100},
+    {id:'reverb',emoji:'🌊',label:'回声/混响还原',desc:'去混响处理',pitch:0,formant:100,speed:100},
+  ];
+  const trained=keys.map(k=>{
+    const f=fpDb[k];
+    return{
+      id:k,emoji:'🧠',label:k,desc:f.rounds+'轮训练',
+      pitch:Math.round(f.sumPitch/f.rounds),
+      formant:Math.round(f.sumFormant/f.rounds*100),
+      speed:Math.round(f.sumSpeed/f.rounds*100)
     };
+  });
+  const all=[...trained,...builtin];
+  presetGrid.innerHTML=all.map(p=>`<button class="preset-btn${currentPreset===p.id?' active':''}" data-preset="${p.id}" data-pitch="${p.pitch}" data-formant="${p.formant}" data-speed="${p.speed}">
+    <span class="preset-emoji">${p.emoji}</span>
+    <span class="preset-label">${p.label}</span>
+    <span class="preset-desc">${p.desc}</span>
+  </button>`).join('');
+
+  presetGrid.querySelectorAll('.preset-btn').forEach(b=>b.addEventListener('click',()=>{
+    currentPreset=b.dataset.preset;
+    presetGrid.querySelectorAll('.preset-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    pitchShift.value=b.dataset.pitch;
+    formantShift.value=b.dataset.formant;
+    speedShift.value=b.dataset.speed;
+    updateSliderLabels();
+    if(restoreBuffer)processAudio();
+  }));
+}
+
+function updateSliderLabels(){
+  pitchVal.textContent=Number(pitchShift.value)>0?'+'+pitchShift.value:pitchShift.value;
+  formantVal.textContent=(formantShift.value/100).toFixed(2);
+  speedVal.textContent=(speedShift.value/100).toFixed(2);
+}
+
+pitchShift.addEventListener('input',()=>{updateSliderLabels();if(restoreBuffer)processAudio();});
+formantShift.addEventListener('input',()=>{updateSliderLabels();if(restoreBuffer)processAudio();});
+speedShift.addEventListener('input',()=>{updateSliderLabels();if(restoreBuffer)processAudio();});
+
+// File handling for restore
+restoreZone.addEventListener('click',()=>restoreInput.click());
+restoreInput.addEventListener('change',e=>{if(e.target.files.length)loadRestoreFile(e.target.files[0]);});
+restoreZone.addEventListener('dragover',e=>{e.preventDefault();restoreZone.classList.add('drag-over');});
+restoreZone.addEventListener('dragleave',()=>restoreZone.classList.remove('drag-over'));
+restoreZone.addEventListener('drop',e=>{
+  e.preventDefault();restoreZone.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];if(f)loadRestoreFile(f);
+});
+restoreFileRemove.addEventListener('click',()=>{
+  stopPlayback();restoreBuffer=null;restoredBuffer=null;
+  restoreFileInfo.classList.remove('show');restoreInput.value='';
+  playOriginal.disabled=true;playRestored.disabled=true;downloadBtn.disabled=true;
+  drawEmptyWaveform();wfPlaceholder.style.display='flex';progressBar.classList.remove('show');
+});
+
+async function loadRestoreFile(file){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(!['mp3','wav','m4a','ogg','mpeg','aac','flac','webm'].includes(ext)){showToast('不支持的格式');return;}
+  try{
+    const buf=await file.arrayBuffer();
+    restoreBuffer=await getCtx().decodeAudioData(buf);
+    restoreFileName.textContent=file.name;
+    restoreFileDuration.textContent=fmtTime(restoreBuffer.duration);
+    restoreFileInfo.classList.add('show');
+    playOriginal.disabled=false;playRestored.disabled=false;downloadBtn.disabled=false;
+    processAudio();drawWaveform(restoreBuffer);wfPlaceholder.style.display='none';
+    showToast('音频加载成功 — '+fmtTime(restoreBuffer.duration));
+  }catch(err){console.error(err);showToast('加载失败');}
+}
+
+// Audio processing
+function processAudio(){
+  if(!restoreBuffer)return;
+  const pitch=parseInt(pitchShift.value);
+  const formant=parseInt(formantShift.value)/100;
+  const speed=parseInt(speedShift.value)/100;
+  const rateForPitch=Math.pow(2,-pitch/12);
+  const totalRate=rateForPitch*speed;
+  const sampleRate=restoreBuffer.sampleRate;
+  const channels=restoreBuffer.numberOfChannels;
+  const length=Math.floor(restoreBuffer.length/speed);
+  const offlineCtx=new OfflineAudioContext(channels,length,sampleRate);
+  const source=offlineCtx.createBufferSource();
+  source.buffer=restoreBuffer;
+  source.playbackRate.value=totalRate;
+  const formantGain=offlineCtx.createGain();
+  formantGain.gain.value=1.0;
+  const filters=[];
+  const baseFormants=[500,1500,2500,3500,4500];
+  for(const bf of baseFormants){
+    const f=offlineCtx.createBiquadFilter();
+    f.type='peaking';f.frequency.value=bf*formant;f.Q.value=2.0;
+    f.gain.value=(formant-1)*6;filters.push(f);
   }
+  source.connect(formantGain);
+  let lastNode=formantGain;
+  for(const f of filters){lastNode.connect(f);lastNode=f;}
+  lastNode.connect(offlineCtx.destination);
+  source.start(0);
+  offlineCtx.startRendering().then(rendered=>{
+    restoredBuffer=rendered;
+    drawWaveform(rendered);
+    showToast('还原处理完成');
+  }).catch(err=>{console.error(err);showToast('处理失败');});
+}
 
-  playOriginal.addEventListener('click', () => {
-    if(!audioBuffer) return;
-    if(currentPlaying === 'original'){
-      stopPlayback();
-      return;
+// Waveform
+function drawWaveform(buffer){
+  const canvas=waveformCanvas;
+  const container=canvas.parentElement;
+  canvas.width=container.clientWidth*2;canvas.height=container.clientHeight*2;
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const data=buffer.getChannelData(0);
+  const step=Math.ceil(data.length/w),amp=h/2;
+  const grad=ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'rgba(0,240,255,0.6)');
+  grad.addColorStop(0.5,'rgba(123,47,255,0.4)');
+  grad.addColorStop(1,'rgba(0,240,255,0.6)');
+  ctx.strokeStyle=grad;ctx.lineWidth=1.5;ctx.beginPath();
+  for(let i=0;i<w;i++){
+    const pos=i*step;let min=1.0,max=-1.0;
+    for(let j=0;j<step&&(pos+j)<data.length;j++){
+      const v=data[pos+j];if(v<min)min=v;if(v>max)max=v;
     }
-    playBuffer(audioBuffer, playOriginal);
-  });
-
-  playRestored.addEventListener('click', () => {
-    if(!restoredBuffer){
-      showToast('请先上传音频并等待处理完成');
-      return;
-    }
-    if(currentPlaying === 'restored'){
-      stopPlayback();
-      return;
-    }
-    playBuffer(restoredBuffer, playRestored);
-  });
-
-  // ===== Download =====
-  downloadBtn.addEventListener('click', () => {
-    if(!restoredBuffer){
-      showToast('没有可下载的还原音频');
-      return;
-    }
-    const wavBlob = bufferToWav(restoredBuffer);
-    const url = URL.createObjectURL(wavBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'restored_audio.wav';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('下载已开始');
-  });
-
-  // ===== WAV Encoder =====
-  function bufferToWav(buffer){
-    const numChannels = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
-    const format = 1; // PCM
-    const bitsPerSample = 16;
-    const data = buffer.getChannelData(0);
-    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
-    const blockAlign = numChannels * bitsPerSample / 8;
-    const dataSize = data.length * numChannels * bitsPerSample / 8;
-    const headerSize = 44;
-    const totalSize = headerSize + dataSize;
-
-    const arrayBuffer = new ArrayBuffer(totalSize);
-    const view = new DataView(arrayBuffer);
-
-    function writeString(offset, str){
-      for(let i = 0; i < str.length; i++){
-        view.setUint8(offset + i, str.charCodeAt(i));
-      }
-    }
-
-    writeString(0, 'RIFF');
-    view.setUint32(4, totalSize - 8, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, format, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitsPerSample, true);
-    writeString(36, 'data');
-    view.setUint32(40, dataSize, true);
-
-    let offset = 44;
-    for(let i = 0; i < data.length; i++){
-      const sample = Math.max(-1, Math.min(1, data[i]));
-      const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-      view.setInt16(offset, intSample, true);
-      offset += 2;
-    }
-
-    return new Blob([arrayBuffer], { type: 'audio/wav' });
+    ctx.moveTo(i,(1+min)*amp);ctx.lineTo(i,(1+max)*amp);
   }
+  ctx.stroke();
+  ctx.strokeStyle='rgba(0,240,255,0.08)';ctx.lineWidth=1;ctx.beginPath();
+  ctx.moveTo(0,amp);ctx.lineTo(w,amp);ctx.stroke();
+}
+function drawEmptyWaveform(){
+  const canvas=waveformCanvas,container=canvas.parentElement;
+  canvas.width=container.clientWidth*2;canvas.height=container.clientHeight*2;
+  canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+}
 
-  // ===== Init =====
-  updateSliderLabels();
-  drawEmptyWaveform();
-
-  // Handle window resize for canvas
-  window.addEventListener('resize', () => {
-    if(audioBuffer && !currentPlaying){
-      drawWaveform(audioBuffer);
+// Live waveform
+function startLiveWaveform(sourceNode){
+  if(!audioCtx)return;
+  analyserNode=audioCtx.createAnalyser();analyserNode.fftSize=256;
+  sourceNode.connect(analyserNode);
+  const canvas=waveformCanvas,container=canvas.parentElement;
+  canvas.width=container.clientWidth*2;canvas.height=container.clientHeight*2;
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+  const bufferLength=analyserNode.frequencyBinCount;
+  const dataArray=new Uint8Array(bufferLength);
+  function draw(){
+    animationId=requestAnimationFrame(draw);
+    analyserNode.getByteFrequencyData(dataArray);
+    ctx.clearRect(0,0,w,h);
+    const barWidth=(w/bufferLength)*2.5;let x=0;
+    for(let i=0;i<bufferLength;i++){
+      const barHeight=(dataArray[i]/255)*h*0.9,y=h-barHeight;
+      const grad=ctx.createLinearGradient(0,y,0,h);
+      grad.addColorStop(0,'rgba(0,240,255,0.9)');
+      grad.addColorStop(0.5,'rgba(123,47,255,0.5)');
+      grad.addColorStop(1,'rgba(0,240,255,0.1)');
+      ctx.fillStyle=grad;ctx.fillRect(x,y,barWidth-1,barHeight);
+      ctx.fillStyle='rgba(0,240,255,0.3)';ctx.fillRect(x,y,barWidth-1,2);
+      x+=barWidth;
     }
-  });
+  }
+  draw();
+}
+function stopLiveWaveform(){
+  if(animationId){cancelAnimationFrame(animationId);animationId=null;}
+  analyserNode=null;
+  if(restoreBuffer)drawWaveform(restoreBuffer);
+}
 
-  console.log('🎤 变声还原器已就绪');
+// Playback
+function stopPlayback(){
+  if(currentSource){try{currentSource.stop();}catch(e){}currentSource.disconnect();currentSource=null;}
+  stopLiveWaveform();
+  playOriginal.classList.remove('playing');playRestored.classList.remove('playing');
+  currentPlaying=null;progressBar.classList.remove('show');
+}
+function playBuffer(buffer,btn){
+  stopPlayback();
+  const ctx=getCtx();if(ctx.state==='suspended')ctx.resume();
+  const source=ctx.createBufferSource();source.buffer=buffer;
+  source.connect(ctx.destination);source.start(0);
+  currentSource=source;currentPlaying=btn===playOriginal?'original':'restored';
+  btn.classList.add('playing');startLiveWaveform(source);
+  progressBar.classList.add('show');
+  const startTime=ctx.currentTime,dur=buffer.duration;
+  function updateProgress(){
+    if(!currentSource)return;
+    const pct=Math.min(((ctx.currentTime-startTime)/dur)*100,100);
+    progressFill.style.width=pct+'%';
+    if(pct<100&&currentSource)requestAnimationFrame(updateProgress);
+    else{stopPlayback();if(restoreBuffer)drawWaveform(restoreBuffer);wfPlaceholder.style.display='none';}
+  }
+  updateProgress();
+  source.onended=()=>{stopPlayback();if(restoreBuffer)drawWaveform(restoreBuffer);wfPlaceholder.style.display='none';};
+}
+playOriginal.addEventListener('click',()=>{
+  if(!restoreBuffer)return;
+  if(currentPlaying==='original'){stopPlayback();return;}
+  playBuffer(restoreBuffer,playOriginal);
+});
+playRestored.addEventListener('click',()=>{
+  if(!restoredBuffer){showToast('请先上传音频并等待处理完成');return;}
+  if(currentPlaying==='restored'){stopPlayback();return;}
+  playBuffer(restoredBuffer,playRestored);
+});
+
+// Download
+downloadBtn.addEventListener('click',()=>{
+  if(!restoredBuffer){showToast('没有可下载的还原音频');return;}
+  const wavBlob=bufferToWav(restoredBuffer);
+  const url=URL.createObjectURL(wavBlob);
+  const a=document.createElement('a');a.href=url;a.download='restored_audio.wav';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);showToast('下载已开始');
+});
+
+function bufferToWav(buffer){
+  const numChannels=buffer.numberOfChannels,sampleRate=buffer.sampleRate;
+  const format=1,bitsPerSample=16;
+  const data=buffer.getChannelData(0);
+  const byteRate=sampleRate*numChannels*bitsPerSample/8;
+  const blockAlign=numChannels*bitsPerSample/8;
+  const dataSize=data.length*numChannels*bitsPerSample/8;
+  const headerSize=44,totalSize=headerSize+dataSize;
+  const arrayBuffer=new ArrayBuffer(totalSize);
+  const view=new DataView(arrayBuffer);
+  function ws(o,s){for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));}
+  ws(0,'RIFF');view.setUint32(4,totalSize-8,true);ws(8,'WAVE');ws(12,'fmt ');
+  view.setUint32(16,16,true);view.setUint16(20,format,true);
+  view.setUint16(22,numChannels,true);view.setUint32(24,sampleRate,true);
+  view.setUint32(28,byteRate,true);view.setUint16(32,blockAlign,true);
+  view.setUint16(34,bitsPerSample,true);ws(36,'data');view.setUint32(40,dataSize,true);
+  let offset=44;
+  for(let i=0;i<data.length;i++){
+    const sample=Math.max(-1,Math.min(1,data[i]));
+    view.setInt16(offset,sample<0?sample*0x8000:sample*0x7FFF,true);
+    offset+=2;
+  }
+  return new Blob([arrayBuffer],{type:'audio/wav'});
+}
+
+// ===== Init =====
+renderFpDb();
+renderPresetGrid();
+updateSliderLabels();
+drawEmptyWaveform();
+window.addEventListener('resize',()=>{if(restoreBuffer&&!currentPlaying)drawWaveform(restoreBuffer);});
+console.log('🎤 变声还原器 v2 — 训练 · 识别 · 还原 已就绪');
 })();
 </script>
 </body>
